@@ -1,0 +1,42 @@
+2026-09-08T02:06:38.015719Z	Cloning repository...
+2026-09-08T02:06:39.808962Z	From https://github.com/kyholdings/diecut-web
+2026-09-08T02:06:39.809579Z	 * branch            472b7ffc18941c354f2f3667be3906455cfbe21f -> FETCH_HEAD
+2026-09-08T02:06:39.809698Z	
+2026-09-08T02:06:39.852145Z	HEAD is now at 472b7ff docs: README 部署章节改为实际发布根=项目根(. + /static/index.html)，录 Cloudflare Pages 连接步骤
+2026-09-08T02:06:39.853436Z	
+2026-09-08T02:06:39.910736Z	
+2026-09-08T02:06:39.911394Z	Using v2 root directory strategy
+2026-09-08T02:06:39.930767Z	Success: Finished cloning repository files
+2026-09-08T02:06:41.752447Z	Checking for configuration in a Wrangler configuration file (BETA)
+2026-09-08T02:06:41.752969Z	
+2026-09-08T02:06:41.753246Z	Found wrangler.toml file. Reading build configuration...
+2026-09-08T02:06:41.862811Z	[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mUnknown character "47"[0m
+2026-09-08T02:06:41.863288Z	
+2026-09-08T02:06:41.863612Z	    /opt/buildhome/repo/wrangler.toml:1:0:
+2026-09-08T02:06:41.863927Z	[37m      1 │ [32m[37m// diecut-web — Cloudflare Pages 配置（纯静态，无需构�...
+2026-09-08T02:06:41.864142Z	        ╵ [32m^[0m
+2026-09-08T02:06:41.864245Z	
+2026-09-08T02:06:41.864319Z	
+2026-09-08T02:06:42.062753Z	🪵  Logs were written to "/root/.config/.wrangler/logs/wrangler-2026-09-08_02-06-41_537.log"
+2026-09-08T02:06:42.097248Z	A Wrangler configuration file was found but it does not appear to be valid. Did you mean to use wrangler.toml to configure Pages? If so, then make sure the file is valid and contains the `pages_build_output_dir` property. Skipping file and continuing.
+2026-09-08T02:06:42.097843Z	No build command specified. Skipping build step.
+2026-09-08T02:06:42.098475Z	Note: No functions dir at /functions found. Skipping.
+2026-09-08T02:06:42.098876Z	Validating asset output directory
+2026-09-08T02:06:43.603397Z	Deploying your site to Cloudflare's global network...
+2026-09-08T02:06:44.281382Z	Parsed 4 valid header rules.
+2026-09-08T02:06:44.281801Z	Found invalid header lines:
+2026-09-08T02:06:44.281884Z	  - #17:  /diecut_engine.py
+2026-09-08T02:06:44.281936Z	    No headers specified
+2026-09-08T02:06:44.281981Z	  - #18:  /box_registry.py
+2026-09-08T02:06:44.282022Z	    No headers specified
+2026-09-08T02:06:44.28207Z	  - #19:  /diecut_schema.json
+2026-09-08T02:06:44.282122Z	    No headers specified
+2026-09-08T02:06:46.221685Z	Uploading... (0/37)
+2026-09-08T02:06:47.006459Z	Uploading... (12/37)
+2026-09-08T02:06:47.278022Z	Uploading... (24/37)
+2026-09-08T02:06:47.524404Z	Uploading... (37/37)
+2026-09-08T02:06:47.525136Z	✨ Success! Uploaded 37 files (2.26 sec)
+2026-09-08T02:06:47.525636Z	
+2026-09-08T02:06:47.976929Z	✨ Upload complete!
+2026-09-08T02:06:49.663657Z	Success: Assets published!
+2026-09-08T02:06:50.455883Z	Success: Your site was deployed!

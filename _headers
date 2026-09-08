@@ -13,8 +13,12 @@
   Cache-Control: public, max-age=31536000, immutable
 
 # 引擎源 + 字体子集：写进 wasm FS，内容稳定，短 cache 即可
+# (每个 Path 一行 + 自己的 Header —— Cloudflare 把每个 path 行视为独立规则)
 /diecut_engine.py
+  Cache-Control: public, max-age=86400
 /box_registry.py
+  Cache-Control: public, max-age=86400
 /diecut_schema.json
+  Cache-Control: public, max-age=86400
 /fonts/NotoSansSC-subset.ttf
   Cache-Control: public, max-age=86400
