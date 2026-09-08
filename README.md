@@ -132,24 +132,28 @@ BOX_REGISTRY = {
 
 ## 部署到 Cloudflare Pages（纯静态）
 
-```bash
-# 1. 提交到独立 git 仓库（绑定 Pages 用）
-git init && git add -A && git commit -m "..."
+仓库已推至 **`https://github.com/kyholdings/diecut-web`**（分支 `main`，独立 git 仓库）。
 
-# 2. 手动 / CI 构建（Cloudflare Pages 项目里设置）：
-#    Build command:  （无——纯静态，无需构建）
-#    Output directory: static
-#    上传的是 static/ 目录（wrangler.toml 仅为可选参考；绑定 git 即可，不需 wrangler CLI）
-```
+> **发布根 = 项目根目录 `.`**（不是 `static/`）。原因：`pyodide-bridge.js` 以根相对路径
+> `fetch('/diecut_engine.py')` / `fetch('/fonts/...')` / `fetch('/static/vendor/*.whl')` 拉取引擎、
+> 字体与 wheel，所以引擎源码、字体必须在发布根下，App 入口在 `/static/index.html`。
+> 项目根已有 `index.html` 轻量跳转到 `/static/index.html`，故访问 `https://<domain>/` 即可用。
 
-- **Publish 目录** = `static/`（含 `index.html` / `pyodide-bridge.js` / `vendor/` 等）。
-- **引擎源码** `diecut_engine.py` / `box_registry.py` / `diecut_schema.json` 需**放进 publish 目录**
-  （`pyodide-bridge.js` 以 `fetch('/<file>')` 读取并写进 wasm FS）。确保上传版本与根目录一致。
-- **大文件注意**：Pyodide 原生包与 wasm 走 CDN（jsdelivr），**不打包**进站点；vendored wheels 共 ~2.9MB、
-  字体子集 13.5KB、引擎 ~84KB——全部远低于 Cloudflare Pages 的 **25MiB 单文件上限**。
-- **`_headers`** 已内置 `Content-Security-Policy`（放行 jsdelivr / cdnjs）与缓存头，可直接随 publish。
+**Cloudflare Pages 面板连接（Connect to git）：**
+1. **Repository** → 选 `kyholdings/diecut-web`。
+2. **Build command** → 留空（纯静态，无需构建）。
+3. **Build output directory** → 填 `.`。
+4. **Production branch** → `main`。
+5. 首次部署会吃 500 构建分钟/月的免费额度，但构建秒级（无 build 步骤）。
 
-上线后：`curl https://<pages-domain>/index.html` 应返回 200。
+**本地再推 + 自动部署：** 改完 `git add -A && git commit && git push`，Pages 自动重新部署。
+
+**大文件注意：** Pyodide 原生包与 wasm 走 CDN（jsdelivr），**不打包**进站点；vendored wheels 共 ~2.9MB、
+字体子集 13.5KB、引擎 ~84KB——全部远低于 Cloudflare Pages 的 **25MiB 单文件上限**。
+
+**`_headers`** 已内置 `Content-Security-Policy`（放行 jsdelivr / cdnjs）+ 缓存头，随发布根自动带上。
+
+上线后：`curl https://<pages-domain>/static/index.html` 应返回 200。
 
 ## 从原项目 fork 的边界
 
