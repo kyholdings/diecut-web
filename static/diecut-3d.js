@@ -279,6 +279,7 @@
   var foldAnim = null;
   var autoRotate = true;
   var dragging = false;
+  var needsRender = true;   // 复用补帧：仅当相机/折叠/自动旋转变化时才真正 render，空闲不烧 GPU
   var lastX = 0, lastY = 0;
   var radius = 380, theta = 0.9, phi = 0.85;
   var target = new THREE.Vector3(0, 30, 10);
@@ -297,18 +298,15 @@
       var hash = 0;
       for (var i = 0; i < panel.id.length; i++) hash = (hash * 31 + panel.id.charCodeAt(i)) >>> 0;
       var hue = (hash % 360) / 360;
-      return new THREE.MeshStandardMaterial({
+      return new THREE.MeshLambertMaterial({
         color: new THREE.Color().setHSL(hue, 0.55, 0.72),
-        roughness: 0.85,
         side: THREE.DoubleSide,
       });
     }
     var tex = new THREE.CanvasTexture(canvas);
     tex.anisotropy = 4;
-    return new THREE.MeshStandardMaterial({
+    return new THREE.MeshLambertMaterial({
       map: tex,
-      roughness: 0.82,
-      metalness: 0.03,
       side: THREE.DoubleSide,
     });
   }
@@ -370,6 +368,7 @@
       var e = ease(raw);
       hn.group.rotation[hn.axis] = hn.from + (hn.to - hn.from) * e;
     }
+    needsRender = true;
   }
 
   function animateTo(target, duration) {
@@ -392,6 +391,7 @@
       target.z + radius * Math.sin(phi) * Math.cos(theta)
     );
     camera.lookAt(target.x, target.y, target.z);
+    needsRender = true;
   }
 
   // 把当前几何包围盒中心设为相机目标，并按视野角精确计算最小完整入镜距离。
@@ -458,7 +458,7 @@
     scene.background = new THREE.Color(0xf3f4f6);
     camera = new THREE.PerspectiveCamera(38, 1, 1, 20000);
     renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
 
@@ -542,7 +542,7 @@
         theta += 0.0028;
         updateCamera();
       }
-      renderer.render(scene, camera);
+      if (needsRender) { renderer.render(scene, camera); needsRender = false; }
     }
     render();
   }
