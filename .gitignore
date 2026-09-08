@@ -15,3 +15,7 @@ fonts/NotoSansSC-Regular.ttf
 *.bak
 node_modules/
 .DS_Store
+
+# Cloudflare Pages 构建日志（本地落盘，勿提交）
+*.log
+diecut-web.*.log
