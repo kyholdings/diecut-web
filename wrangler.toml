@@ -1,0 +1,7 @@
+// diecut-web — Cloudflare Pages 配置（纯静态，无需构建）。
+// 绑定到 git 仓库即可自动部署；本文件供 wrangler CLI / 手动项目作为参考。
+name = "diecut-web"
+compatibility_date = "2026-09-01"
+
+[pages]
+build_output_dir = "."          # 发布根 = 项目根：/index.html(跳转)、/static/、引擎源、fonts/

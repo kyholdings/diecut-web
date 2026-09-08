@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>飞机盒刀版生成器</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background: #f5f6fa; }
+    .card { border: none; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,.06); }
+    .form-label { font-weight: 600; font-size: .9rem; }
+    .btn-primary { background: #2563eb; border-color: #2563eb; }
+    .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    #preview-box {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      min-height: 420px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      padding: 12px;
+    }
+    #preview-box svg { max-width: 100%; height: auto; }
+    #preview-3d {
+      position: relative;                      /* 供缩放控制浮层绝对定位 */
+      height: clamp(460px, 60vh, 720px);       /* 更大的默认窗口：随视口高度自适应 */
+      min-height: 460px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f3f4f6;
+      cursor: grab;
+      touch-action: none;                      /* 移动端触摸交给 JS 处理（旋转/捏合缩放） */
+    }
+    #preview-3d:active { cursor: grabbing; }
+    #preview-3d:fullscreen { width: 100%; height: 100%; background: #f3f4f6; border-radius: 0; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+    .meta-item { background: #f8fafc; border-radius: 8px; padding: 8px 10px; font-size: .82rem; }
+    .meta-item b { display: block; color: #0f172a; font-size: .95rem; }
+    .meta-item span { color: #64748b; }
+    .badge-cut { background: #fee2e2; color: #b91c1c; }
+    .badge-crease { background: #dbeafe; color: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <div class="container py-4" id="app">
+    <div class="d-flex align-items-center mb-3">
+      <div class="me-3">
+        <span class="fs-3">📦</span>
+      </div>
+      <div>
+        <h1 class="h4 mb-0">刀版生成器</h1>
+        <small class="text-muted">选择盒型并输入长宽高与纸板厚度，一键输出 PDF / DXF / SVG 刀版文件（1:1 mm）</small>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="card p-4">
+          <form @submit.prevent="generate">
+            <div class="mb-3">
+              <label class="form-label" for="box_type">盒型</label>
+              <select id="box_type" class="form-control" v-model="form.box_type">
+                <option v-for="bt in boxTypes" :key="bt.key" :value="bt.key">{{ bt.label }}</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="length">长度 L (mm)</label>
+              <input id="length" type="number" class="form-control" v-model.number="form.length" min="1" step="0.5" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="width">宽度 W (mm)</label>
+              <input id="width" type="number" class="form-control" v-model.number="form.width" min="1" step="0.5" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="height">高度 H (mm)</label>
+              <input id="height" type="number" class="form-control" v-model.number="form.height" min="1" step="0.5" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="thickness">纸板厚度 t (mm)</label>
+              <input id="thickness" type="number" class="form-control" v-model.number="form.thickness" min="0.1" step="0.1" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label d-block">尺寸类型</label>
+              <div class="btn-group w-100" role="group">
+                <input type="radio" class="btn-check" name="internal" id="internal-true" :checked="form.internal === true" @change="form.internal = true" />
+                <label class="btn btn-outline-primary" for="internal-true">内尺寸</label>
+                <input type="radio" class="btn-check" name="internal" id="internal-false" :checked="form.internal === false" @change="form.internal = false" />
+                <label class="btn btn-outline-primary" for="internal-false">外尺寸</label>
+              </div>
+            </div>
+
+            <details class="mb-3 small text-muted">
+              <summary class="cursor-pointer">高级参数（可选）</summary>
+              <div class="mt-2" v-if="form.box_type === 'insertion'">
+                <div class="fw-bold mb-1">段3 开窗（插口盒）</div>
+                <label class="form-label">窗宽 (mm)</label>
+                <input type="number" class="form-control" v-model.number="form.window_width" min="0" step="1" />
+                <div class="form-text">左右居中；上限 = 段3壁宽 L − 20</div>
+                <label class="form-label">窗高 (mm)</label>
+                <input type="number" class="form-control" v-model.number="form.window_height" min="0" step="1" />
+                <label class="form-label">窗顶距顶 (mm)</label>
+                <input type="number" class="form-control" v-model.number="form.window_top_offset" min="0" step="1" />
+                <div class="form-text">以段3顶端为基线；设 0 = 关闭窗口。默认 25×60、顶距 20，对齐复刻原图位置</div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">插舌深度 (mm)</label>
+                <input type="number" class="form-control" v-model.number="form.tab_depth" min="8" step="1" />
+                <div class="form-text">留空 = 盒高 H；插舌为直角三角形 + 顶角圆弧化</div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">两折翼插入段比例</label>
+                <input type="number" class="form-control" v-model.number="form.fold_ratio" min="0.1" max="0.6" step="0.05" />
+                <div class="form-text">默认 0.3；盖翼/后壁翼宽度 = 盒高 − 纸厚，内部两折</div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">锁扣翼宽度比例</label>
+                <input type="number" class="form-control" v-model.number="form.lock_ratio" min="0.3" step="0.05" />
+                <div class="form-text">默认 1.0；自锁结构，无需胶水</div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">盖翼圆角半径 (mm)</label>
+                <input type="number" class="form-control" v-model.number="form.corner_radius" min="0" max="20" step="0.5" />
+                <div class="form-text">默认 0 = 直角；>0 时盖翼顶角圆角化（自动钳制）</div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">插舌耳翼顶圆角 (mm)</label>
+                <input type="number" class="form-control" v-model.number="form.tab_ear_radius" min="0" step="0.5" />
+                <div class="form-text">默认 0 = 尖角三角形耳翼；>0 时插舌两耳翼顶角圆弧化（自动钳制）</div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">凸起钩高度比例</label>
+                <input type="number" class="form-control" v-model.number="form.hook_ratio" min="0.2" max="0.5" step="0.01" />
+                <div class="form-text">默认 0.33（≈ W/3）；范围 0.2–0.5，影响侧壁互锁强度</div>
+              </div>
+              <div class="mt-2">
+                <div class="form-text">「尺寸类型」选内尺寸=按输入直接出盒；选外尺寸=自动扣 2×纸厚（长）、3×纸厚（宽）、2×纸厚（高）换算成制造尺寸后再出盒</div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">制造长补偿 fb_comp (mm)</label>
+                <input type="number" class="form-control" v-model.number="form.fb_comp" min="0" step="0.5" />
+                <div class="form-text">制造长 = 内长 + 补偿；0 = 关闭（推荐，内盖式），>0 延长前/后面与盖面</div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">侧壁宽补偿 side_comp (mm)</label>
+                <input type="number" class="form-control" v-model.number="form.side_comp" min="0" step="0.5" />
+                <div class="form-text">盒宽 = 内宽 + 补偿；0 = 关闭（推荐，内盖式）</div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label d-block">显示图层</label>
+                <div class="btn-group btn-group-sm w-100" role="group">
+                  <input type="checkbox" class="btn-check" id="lay-cut" :checked="form.layers.includes('CUT')" @change="toggleLayer('CUT', $event)" />
+                  <label class="btn btn-outline-dark" for="lay-cut">模切</label>
+                  <input type="checkbox" class="btn-check" id="lay-crease" :checked="form.layers.includes('CREASE')" @change="toggleLayer('CREASE', $event)" />
+                  <label class="btn btn-outline-dark" for="lay-crease">压痕</label>
+                  <input type="checkbox" class="btn-check" id="lay-half" :checked="form.layers.includes('HALFCUT')" @change="toggleLayer('HALFCUT', $event)" />
+                  <label class="btn btn-outline-dark" for="lay-half">半刀</label>
+                  <input type="checkbox" class="btn-check" id="lay-dim" :checked="form.layers.includes('DIMENSION')" @change="toggleLayer('DIMENSION', $event)" />
+                  <label class="btn btn-outline-dark" for="lay-dim">尺寸线</label>
+                </div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">拼版纸张 (mm)</label>
+                <div class="row g-2">
+                  <div class="col-6">
+                    <input type="number" class="form-control" v-model.number="form.sheet.width" min="1" step="1" placeholder="宽度" title="纸张宽度" />
+                  </div>
+                  <div class="col-6">
+                    <input type="number" class="form-control" v-model.number="form.sheet.height" min="1" step="1" placeholder="高度" title="纸张高度" />
+                  </div>
+                </div>
+                <div class="form-text">填写后自动估算直放/横放的拼版数量和利用率</div>
+              </div>
+            </details>
+
+            <button type="submit" class="btn btn-primary w-100" :disabled="loading">
+              <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
+              {{ loading ? '生成中...' : '生成刀版' }}
+            </button>
+          </form>
+
+          <div v-if="error" class="alert alert-danger mt-3 mb-0 py-2">{{ error }}</div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h6 mb-0">刀版预览</h2>
+            <div v-if="result">
+              <span class="badge badge-cut me-1">实线 = 模切</span>
+              <span class="badge badge-crease">虚线 = 压痕</span>
+            </div>
+          </div>
+
+          <div v-if="result" class="d-flex gap-2 mb-2 flex-wrap">
+            <button type="button" class="btn btn-sm btn-outline-primary" @click="toggle3D">
+              {{ show3D ? '返回 2D 刀版' : '打开 3D 折叠预览' }}
+            </button>
+            <template v-if="show3D">
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="toggleFold3D">
+                {{ folded3D ? '展开盒体' : '折叠盒体' }}
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-success" @click="playFold3D">
+                ▶ 自动播放
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-info" @click="toggleFullscreen3D" title="全屏查看 3D">
+                ⛶ 全屏
+              </button>
+              <div class="d-flex align-items-center gap-2 ms-1" style="min-width:220px; flex:1 1 220px;">
+                <input type="range" min="0" max="1" step="0.001" v-model.number="fold3DProgress"
+                       @input="onFoldSlider" class="form-range flex-grow-1" title="折叠进度" />
+                <span class="text-muted small" style="width:56px; text-align:right;">{{ (fold3DProgress * 100).toFixed(0) }}%</span>
+              </div>
+            </template>
+          </div>
+          <div v-if="show3D" class="mb-2 small text-muted">
+            <span class="badge badge-cut me-1">实线 = 模切</span>
+            <span class="badge badge-crease">虚线 = 压痕</span>
+            <span class="ms-2">拖动旋转 · 滚轮/捏合缩放 · 双击放大 · 滑杆逐帧折叠</span>
+          </div>
+
+          <div v-if="!show3D" id="preview-box">
+            <div v-if="!result && !loading" class="text-muted">
+              填写左侧参数后点击“生成刀版”
+            </div>
+            <div v-else-if="loading" class="spinner-border text-primary"></div>
+            <div v-else-if="result" v-html="svgContent"></div>
+          </div>
+          <div v-if="show3D" id="preview-3d"></div>
+
+          <div v-if="result" class="mt-3">
+            <div class="meta-grid mb-3">
+              <div class="meta-item"><span>制造尺寸</span><b>{{ result.meta.inner.length }} × {{ result.meta.inner.width }} × {{ result.meta.inner.height }} mm</b></div>
+              <div class="meta-item"><span>名义外尺寸</span><b>{{ result.meta.outer.length }} × {{ result.meta.outer.width }} × {{ result.meta.outer.height }} mm</b></div>
+              <div class="meta-item"><span>展开宽度</span><b>{{ result.meta.blank.width_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>展开高度</span><b>{{ result.meta.blank.height_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>列宽(长)</span><b>{{ result.meta.blank.panel_width_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>壁高(含纸厚)</span><b>{{ result.meta.blank.wall_height_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>底面高(宽)</span><b>{{ result.meta.blank.bottom_height_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>盖面高</span><b>{{ result.meta.blank.lid_height_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>插舌深</span><b>{{ result.meta.blank.tab_depth_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>盖翼宽</span><b>{{ result.meta.blank.wing_width_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>后壁翼宽</span><b>{{ result.meta.blank.back_flap_width_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>锁扣翼宽</span><b>{{ result.meta.blank.lock_width_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>大侧壁内段</span><b>{{ result.meta.blank.side_inner_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>大侧壁外段</span><b>{{ result.meta.blank.side_outer_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>两折插入段</span><b>{{ result.meta.blank.fold_seg_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>盖翼圆角</span><b>{{ result.meta.parameters.corner_radius_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>凸起钩比例</span><b>{{ result.meta.parameters.hook_ratio.toFixed(2) }}</b></div>
+              <div class="meta-item"><span>凸起钩高</span><b>{{ result.meta.parameters.hook_height_mm.toFixed(1) }} mm</b></div>
+              <div class="meta-item"><span>尺寸类型</span><b>{{ result.meta.parameters.board_compensation ? '内尺寸' : '外尺寸' }}</b></div>
+              <div class="meta-item"><span>图层</span><b>{{ result.meta.parameters.layers.join('/') }}</b></div>
+              <div class="meta-item"><span>线条</span><b>{{ result.meta.segments.cut }} 刀 / {{ result.meta.segments.crease }} 痕</b></div>
+              <div v-if="result.meta.nesting" class="meta-item"><span>拼版数量</span><b>{{ result.meta.nesting.count }} 件</b></div>
+              <div v-if="result.meta.nesting" class="meta-item"><span>纸张利用率</span><b>{{ (result.meta.nesting.utilization * 100).toFixed(1) }}%</b></div>
+              <div v-if="result.meta.nesting" class="meta-item"><span>排样方向</span><b>{{ result.meta.nesting.rotation === 90 ? '横放' : '直放' }}</b></div>
+            </div>
+            <div class="d-flex gap-2">
+              <a class="btn btn-success" :href="pdfUrl" download="diecut.pdf" target="_blank" rel="noopener">
+                ⬇ 下载 PDF
+              </a>
+              <a class="btn btn-dark" :href="dxfUrl" download="diecut.dxf">
+                ⬇ 下载 DXF
+              </a>
+              <a class="btn btn-outline-secondary" :href="svgUrl" target="_blank" rel="noopener">
+                查看 SVG
+              </a>
+            </div>
+            <p class="text-muted small mt-2 mb-0">
+              PDF / DXF 均为 1:1 毫米制；自锁结构无需胶水。PDF 可直接打印，DXF 供 CAD / 刀模软件使用。
+            </p>
+          </div>
+          <div v-if="engineError" class="alert alert-danger mt-3 mb-0 py-2">
+            {{ engineError }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.4.31/dist/vue.global.prod.js"></script>
+  <script src="/static/pyodide-bridge.js?v=20260908"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="/static/diecut-3d.js?v=20260908"></script>
+  <script>
+    const { createApp } = Vue;
+
+    // 各盒型参数规则由 window.DiecutEngine.boxTypes 在初始化后动态注入
+    // （见 mounted -> initEngine）。此处仅保留跨盒型通用的高级参数。
+    const COMMON_FORM = {
+      internal: true,
+      tab_depth: null,
+      fold_ratio: 0.3,
+      lock_ratio: 1.0,
+      corner_radius: 0,
+      tab_ear_radius: 0,
+      hook_ratio: 0.33,
+      fb_comp: 0,
+      side_comp: 0,
+      window_width: 25,
+      window_height: 60,
+      window_top_offset: 20,
+      layers: ['CUT', 'CREASE'],
+      sheet: { width: 1200, height: 800 },
+    };
+
+    createApp({
+      data() {
+        return {
+          loading: false,
+          error: '',
+          result: null,
+          svgContent: '',
+          engineReady: false,
+          engineError: '',
+          boxTypes: [],
+          pdfUrl: '',
+          dxfUrl: '',
+          svgUrl: '',
+          show3D: false,
+          folded3D: false,
+          fold3DProgress: 0,
+          form: {
+            box_type: 'insertion',
+            ...COMMON_FORM,
+          },
+        };
+      },
+      mounted() {
+        this.initEngine();
+      },
+      watch: {
+        form: {
+          deep: true,
+          handler() {
+            this.scheduleGenerate();
+          },
+        },
+        'form.box_type'(newType) {
+          // 切换盒型：恢复该盒型默认长宽高/厚度；保留用户已选的 layers 与 sheet 设置
+          const bt = this.boxTypes.find((b) => b.key === newType);
+          if (!bt) return;
+          for (const k of Object.keys(bt.defaults)) {
+            this.form[k] = bt.defaults[k];
+          }
+          this.scheduleGenerate();
+        },
+      },
+      methods: {
+        scheduleGenerate() {
+          clearTimeout(this.generateTimer);
+          this.generateTimer = setTimeout(() => this.generate(), 350);
+        },
+        toggleLayer(name, ev) {
+          const checked = ev.target.checked;
+          if (checked && !this.form.layers.includes(name)) {
+            this.form.layers.push(name);
+          } else if (!checked) {
+            this.form.layers = this.form.layers.filter((l) => l !== name);
+          }
+        },
+        async initEngine() {
+          // 纯静态：启动 Pyodide 运行时，取盒型注册表驱动下拉/默认值
+          this.engineError = '';
+          try {
+            if (window.DiecutEngine && !window.DiecutEngine.ready) {
+              await window.DiecutEngine.init();
+            }
+            this.boxTypes = (window.DiecutEngine && window.DiecutEngine.boxTypes) || [];
+            this.engineReady = !!(window.DiecutEngine && window.DiecutEngine.ready);
+            if (!this.boxTypes.length && window.DiecutEngine && window.DiecutEngine.error) {
+              throw new Error(window.DiecutEngine.error);
+            }
+            // 给当前默认盒型套上其默认尺寸，再出一次首图
+            const first = this.boxTypes.find((b) => b.key === this.form.box_type) || this.boxTypes[0];
+            if (first) {
+              this.form.box_type = first.key;
+              for (const k of Object.keys(first.defaults)) this.form[k] = first.defaults[k];
+            }
+            this.generate();
+          } catch (e) {
+            this.engineReady = false;
+            this.engineError = (e && e.message) || '引擎初始化失败';
+            this.error = 'WebAssembly 引擎加载失败：' + this.engineError;
+          }
+        },
+        revokeUrls() {
+          if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
+          if (this.dxfUrl) URL.revokeObjectURL(this.dxfUrl);
+          if (this.svgUrl) URL.revokeObjectURL(this.svgUrl);
+          this.pdfUrl = this.dxfUrl = this.svgUrl = '';
+        },
+        async generate() {
+          this.loading = true;
+          this.error = '';
+          this.result = null;
+          this.svgContent = '';
+          this.revokeUrls();
+          try {
+            if (!window.DiecutEngine || !window.DiecutEngine.ready) {
+              throw new Error(this.engineError || '引擎尚未就绪');
+            }
+            const data = await window.DiecutEngine.generate(this.form);
+            if (!data.ok) throw new Error(data.error || '生成失败');
+            this.result = data;
+            this.svgContent = data.svg;
+            this.pdfUrl = URL.createObjectURL(data.pdf);
+            this.dxfUrl = URL.createObjectURL(data.dxf);
+            this.svgUrl = URL.createObjectURL(new Blob([data.svg], { type: 'image/svg+xml' }));
+            this.show3D = false;
+            this.folded3D = false;
+            localStorage.setItem('diecut-last-result', JSON.stringify({ geometry: data.geometry, meta: data.meta }));
+            localStorage.setItem('diecut-last-svg', data.svg);
+          } catch (e) {
+            // 纯静态：不再有服务器兜底，出错即提示
+            this.error = (e && e.message) || '生成失败';
+          } finally {
+            this.loading = false;
+          }
+        },
+        toggle3D() {
+          this.show3D = !this.show3D;
+          if (this.show3D && window.Diecut3D && this.result.geometry) {
+            this.$nextTick(() => {
+              window.Diecut3D.update(this.result.geometry, this.result.meta);
+              this.fold3DProgress = 0;
+              this.folded3D = false;
+            });
+          }
+        },
+        onFoldSlider() {
+          if (window.Diecut3D) {
+            window.Diecut3D.setProgress(this.fold3DProgress);
+            this.folded3D = this.fold3DProgress >= 0.5;
+          }
+        },
+        toggleFold3D() {
+          if (window.Diecut3D) {
+            this.folded3D = window.Diecut3D.toggleFold();
+            this.fold3DProgress = window.Diecut3D.getProgress();
+          }
+        },
+        playFold3D() {
+          if (window.Diecut3D) {
+            window.Diecut3D.play();
+            this.folded3D = window.Diecut3D.getProgress() >= 0.5;
+          }
+        },
+        toggleFullscreen3D() {
+          const el = document.getElementById('preview-3d');
+          // 进出全屏不触发 window.resize，需手动让渲染器重算以铺满新尺寸
+          const refit = () => window.dispatchEvent(new Event('resize'));
+          if (document.fullscreenElement) {
+            (document.exitFullscreen() || Promise.resolve()).then(refit);
+          } else if (el && el.requestFullscreen) {
+            (el.requestFullscreen() || Promise.resolve()).then(refit);
+          }
+        },
+      },
+    }).mount('#app');
+  </script>
+</body>
+</html>

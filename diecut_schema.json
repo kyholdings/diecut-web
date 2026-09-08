@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kyholdings.github.io/diecut-generator/schema/diecut-request.json",
+  "title": "DieCutRequest",
+  "type": "object",
+  "required": ["length", "width", "height", "thickness"],
+  "properties": {
+    "length": { "type": "number", "exclusiveMinimum": 0 },
+    "width": { "type": "number", "exclusiveMinimum": 0 },
+    "height": { "type": "number", "exclusiveMinimum": 0 },
+    "thickness": { "type": "number", "exclusiveMinimum": 0, "maximum": 20 },
+    "internal": { "type": "boolean", "default": true },
+    "tab_depth": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+    "fold_ratio": { "type": "number", "minimum": 0.1, "maximum": 0.6, "default": 0.3 },
+    "lock_ratio": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
+    "corner_radius": { "type": "number", "minimum": 0, "default": 0 },
+    "hook_ratio": { "type": "number", "minimum": 0.2, "maximum": 0.5, "default": 0.33 },
+    "board_compensation": { "type": ["boolean", "null"] },
+    "layers": {
+      "type": "array",
+      "items": { "enum": ["CUT", "CREASE", "HALFCUT", "DIMENSION"] },
+      "uniqueItems": true
+    },
+    "sheet": {
+      "type": "object",
+      "properties": {
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 },
+        "margin": { "type": "number", "minimum": 0, "default": 10 },
+        "gap": { "type": "number", "minimum": 0, "default": 5 }
+      },
+      "required": ["width", "height"]
+    }
+  },
+  "additionalProperties": true
+}

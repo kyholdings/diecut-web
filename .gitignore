@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.venv-lite-llm/
+local_llm/
+
+# 运行时产物（CLI oracle 输出，生成即覆盖）
+outputs/
+
+# 大字体源（10.6MB，仅用于重跑 dix_subset_font.py 生成子集；子集版已提交）
+fonts/NotoSansSC-Regular.ttf
+
+# 临时/备份
+*.bak
+node_modules/
+.DS_Store

@@ -1,0 +1,5 @@
+# diecut-web 纯静态依赖（geometry 引擎 + 三格式生成全在端侧/本地 CLI 运行）。
+# 去掉了原项目的 flask / reportlab / gunicorn —— 纯静态不跑 Flask；PDF 用 fpdf2 替代 reportlab。
+fpdf2>=2.8
+ezdxf>=1.1
+fonttools>=4.0

@@ -1,0 +1,13 @@
+# Windows 仓库：避免行尾误转义破坏二进制资产
+* text=auto
+*.whl binary
+*.ttf binary
+*.png binary
+*.pdf binary
+*.dxf binary
+*.svg text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.md text eol=lf
